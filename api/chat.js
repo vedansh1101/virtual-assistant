@@ -1,17 +1,29 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  // Handle OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST requests allowed" });
   }
 
   try {
-    // Get API key from Vercel environment variables
+    // Get API key from environment
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({
-        error: "GEMINI_API_KEY is not set in environment variables"
+        reply: "Server configuration error. Please contact admin."
       });
     }
 
@@ -20,17 +32,18 @@ export default async function handler(req, res) {
     // Validate input
     if (!message || typeof message !== "string") {
       return res.status(400).json({
-        error: "Invalid message. Must be a string."
+        reply: "Invalid message format."
       });
     }
 
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Use stable, guaranteed models
+    // Try models in order
     const modelsToTry = [
       "gemini-1.5-flash",
-      "gemini-1.5-pro"
+      "gemini-1.5-pro",
+      "gemini-pro"
     ];
 
     for (const modelName of modelsToTry) {
@@ -44,16 +57,18 @@ export default async function handler(req, res) {
           model: modelName
         });
       } catch (err) {
-        console.log(`❌ ${modelName} failed, trying next...`);
+        console.log(`${modelName} failed, trying next...`);
+        continue;
       }
     }
 
-    throw new Error("All Gemini models failed");
+    throw new Error("All models failed");
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("API Error:", error.message);
     return res.status(500).json({
-      reply: "AI service is temporarily unavailable. Please try again."
+      reply: "AI service temporarily unavailable. Please try again."
     });
   }
 }
+

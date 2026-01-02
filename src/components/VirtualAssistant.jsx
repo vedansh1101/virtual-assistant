@@ -1,41 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 
-const STORAGE_KEY = "va_messages";
-const THEME_KEY = "va_theme";
 const COOLDOWN_MS = 3000;
 
 export default function VirtualAssistant() {
-  const [messages, setMessages] = useState(
-    JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
-  );
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
-  const [dark, setDark] = useState(
-    localStorage.getItem(THEME_KEY) === "dark"
-  );
+  const [dark, setDark] = useState(false);
 
   const bottomRef = useRef(null);
   const recognitionRef = useRef(null);
   const lastSentRef = useRef(0);
 
-  /* ------------------ EFFECTS ------------------ */
-
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
   useEffect(() => {
-    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  /* ------------------ SPEECH ------------------ */
-
   const startListening = () => {
     if (!("webkitSpeechRecognition" in window)) {
-      alert("Speech recognition not supported");
+      alert("Speech recognition not supported in this browser");
       return;
     }
 
@@ -46,13 +34,11 @@ export default function VirtualAssistant() {
     recognition.onstart = () => setListening(true);
     recognition.onend = () => setListening(false);
     recognition.onresult = (e) =>
-      setInput((prev) => prev + e.results[0][0].transcript);
+      setInput((prev) => prev + " " + e.results[0][0].transcript);
 
     recognition.start();
     recognitionRef.current = recognition;
   };
-
-  /* ------------------ CHAT ------------------ */
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -74,7 +60,6 @@ export default function VirtualAssistant() {
     setLoading(true);
 
     try {
-      // ✅ CORRECT API CALL FOR VERCEL
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,12 +92,9 @@ export default function VirtualAssistant() {
     }
   };
 
-  /* ------------------ UTILITIES ------------------ */
-
   const clearChat = () => {
     if (confirm("Clear entire chat?")) {
       setMessages([]);
-      localStorage.removeItem(STORAGE_KEY);
     }
   };
 
@@ -127,27 +109,45 @@ export default function VirtualAssistant() {
     a.click();
   };
 
-  const copyText = (text) => navigator.clipboard.writeText(text);
-
-  /* ------------------ UI ------------------ */
+  const copyText = (text) => {
+    navigator.clipboard.writeText(text);
+    alert("Copied!");
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 bg-blue-600 text-white">
+      <div className="flex justify-between items-center p-4 bg-blue-600 text-white shadow-lg">
         <h1 className="font-semibold text-lg">🤖 Virtual Assistant</h1>
-        <div className="space-x-3">
-          <button onClick={() => setDark(!dark)}>🌓</button>
-          <button onClick={exportChat}>⬇</button>
-          <button onClick={clearChat}>🗑</button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setDark(!dark)}
+            className="hover:bg-blue-700 px-3 py-1 rounded transition"
+          >
+            {dark ? "☀️" : "🌙"}
+          </button>
+          <button 
+            onClick={exportChat}
+            className="hover:bg-blue-700 px-3 py-1 rounded transition"
+            disabled={messages.length === 0}
+          >
+            ⬇
+          </button>
+          <button 
+            onClick={clearChat}
+            className="hover:bg-blue-700 px-3 py-1 rounded transition"
+            disabled={messages.length === 0}
+          >
+            🗑
+          </button>
         </div>
       </div>
 
-      {/* Chat */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-20">
-            👋 Start a conversation
+          <div className="text-center text-gray-500 dark:text-gray-400 mt-20">
+            <div className="text-6xl mb-4">👋</div>
+            <div className="text-xl">Start a conversation</div>
+            <div className="text-sm mt-2">Ask me anything!</div>
           </div>
         )}
 
@@ -159,18 +159,18 @@ export default function VirtualAssistant() {
             }`}
           >
             <div
-              className={`relative max-w-md px-4 py-2 rounded-2xl text-sm shadow
+              className={`relative max-w-md px-4 py-2 rounded-2xl text-sm shadow-md
               ${
                 m.role === "user"
                   ? "bg-blue-500 text-white rounded-br-none"
                   : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-bl-none"
               }`}
             >
-              {m.text}
+              <div className="whitespace-pre-wrap break-words">{m.text}</div>
               <div className="text-[10px] opacity-60 mt-1">{m.time}</div>
               <button
                 onClick={() => copyText(m.text)}
-                className="absolute -top-2 -right-2 text-xs"
+                className="absolute -top-2 -right-2 bg-gray-200 dark:bg-gray-700 rounded-full w-6 h-6 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition"
               >
                 📋
               </button>
@@ -179,50 +179,63 @@ export default function VirtualAssistant() {
         ))}
 
         {loading && (
-          <div className="animate-pulse text-gray-500">
-            🤖 AI is typing…
+          <div className="flex justify-start">
+            <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-2xl rounded-bl-none shadow-md">
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+              </div>
+            </div>
           </div>
         )}
 
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-4 bg-white dark:bg-gray-800 border-t flex items-center gap-2">
-        <button
-          onClick={startListening}
-          className={`text-xl ${listening ? "animate-pulse" : ""}`}
-        >
-          🎤
-        </button>
+      <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shadow-lg">
+        <div className="flex items-end gap-2 max-w-4xl mx-auto">
+          <button
+            onClick={startListening}
+            className={`text-2xl px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition ${
+              listening ? "animate-pulse bg-red-100 dark:bg-red-900" : ""
+            }`}
+          >
+            🎤
+          </button>
 
-        <textarea
-          value={input}
-          rows={1}
-          maxLength={500}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-          className="flex-1 resize-none rounded-lg px-3 py-2 border focus:outline-none dark:bg-gray-700"
-          placeholder="Type your message…"
-        />
+          <div className="flex-1 relative">
+            <textarea
+              value={input}
+              rows={1}
+              maxLength={500}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              className="w-full resize-none rounded-lg px-4 py-2 border dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="Type your message…"
+            />
+            <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+              {input.length}/500
+            </div>
+          </div>
 
-        <div className="text-xs text-gray-500">{input.length}/500</div>
-
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-        >
-          Send
-        </button>
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+          >
+            {loading ? "..." : "Send"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
 
 

@@ -1,7 +1,7 @@
-import React from "react";
-import VirtualAssistant from "./components/VirtualAssistant";
+import VirtualAssistant from './components/VirtualAssistant';
 
-export default function App() {
+function App() {
   return <VirtualAssistant />;
 }
 
+export default App;
