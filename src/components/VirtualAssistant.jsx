@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "va_messages";
 const THEME_KEY = "va_theme";
-const COOLDOWN_MS = 3000; // ⛔ prevent API spam
+const COOLDOWN_MS = 3000;
 
 export default function VirtualAssistant() {
   const [messages, setMessages] = useState(
@@ -57,7 +57,6 @@ export default function VirtualAssistant() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    // ⛔ cooldown protection
     if (Date.now() - lastSentRef.current < COOLDOWN_MS) {
       alert("Please wait a moment before sending again.");
       return;
@@ -75,7 +74,8 @@ export default function VirtualAssistant() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/chat", {
+      // ✅ CORRECT API CALL FOR VERCEL
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg.text }),
