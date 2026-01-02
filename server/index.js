@@ -17,8 +17,6 @@ console.log(
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-
-
 // ✅ Health check
 app.get("/", (req, res) => {
   res.json({ status: "Server running ✅" });
@@ -34,7 +32,7 @@ app.post("/chat", async (req, res) => {
     }
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash" // ✅ stable + low quota usage
+      model: "gemini-1.5-flash-latest" // ✅ CHANGED: Added -latest
     });
 
     const result = await model.generateContent(message);
