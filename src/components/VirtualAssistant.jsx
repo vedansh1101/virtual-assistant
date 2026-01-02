@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "va_messages";
 const THEME_KEY = "va_theme";
+const COOLDOWN_MS = 3000; // ⛔ prevent API spam
 
 export default function VirtualAssistant() {
   const [messages, setMessages] = useState(
@@ -16,6 +17,7 @@ export default function VirtualAssistant() {
 
   const bottomRef = useRef(null);
   const recognitionRef = useRef(null);
+  const lastSentRef = useRef(0);
 
   /* ------------------ EFFECTS ------------------ */
 
@@ -33,7 +35,7 @@ export default function VirtualAssistant() {
 
   const startListening = () => {
     if (!("webkitSpeechRecognition" in window)) {
-      alert("Speech Recognition not supported");
+      alert("Speech recognition not supported");
       return;
     }
 
@@ -55,9 +57,16 @@ export default function VirtualAssistant() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
+    // ⛔ cooldown protection
+    if (Date.now() - lastSentRef.current < COOLDOWN_MS) {
+      alert("Please wait a moment before sending again.");
+      return;
+    }
+    lastSentRef.current = Date.now();
+
     const userMsg = {
       role: "user",
-      text: input,
+      text: input.trim(),
       time: new Date().toLocaleTimeString(),
     };
 
@@ -72,20 +81,26 @@ export default function VirtualAssistant() {
         body: JSON.stringify({ message: userMsg.text }),
       });
 
+      if (!res.ok) throw new Error("Server error");
+
       const data = await res.json();
 
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          text: data.reply || "No response",
+          text: data.reply || "No response from AI",
           time: new Date().toLocaleTimeString(),
         },
       ]);
-    } catch {
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: "ai", text: "❌ Error connecting to AI", time: "" },
+        {
+          role: "ai",
+          text: "⚠ Error connecting to AI. Try again later.",
+          time: new Date().toLocaleTimeString(),
+        },
       ]);
     } finally {
       setLoading(false);
@@ -164,7 +179,9 @@ export default function VirtualAssistant() {
         ))}
 
         {loading && (
-          <div className="animate-pulse text-gray-500">AI is typing…</div>
+          <div className="animate-pulse text-gray-500">
+            🤖 AI is typing…
+          </div>
         )}
 
         <div ref={bottomRef} />
@@ -207,4 +224,5 @@ export default function VirtualAssistant() {
     </div>
   );
 }
+
 
