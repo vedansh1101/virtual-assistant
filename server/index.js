@@ -15,8 +15,8 @@ console.log(
   process.env.GEMINI_API_KEY ? "Yes ✅" : "No ❌"
 );
 
-// ✅ Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+
 
 // ✅ Health check
 app.get("/", (req, res) => {
